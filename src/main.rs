@@ -375,7 +375,7 @@ fn format_project_context(context: &ProjectContext) -> String {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = Command::new("apc")
-        .version("0.1.0")
+        .version(env!("CARGO_PKG_VERSION"))
         .about("AI Project Context - Prepares project code context for AI consumption")
         // Positional argument for path (first argument)
         .arg(
