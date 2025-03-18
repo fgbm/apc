@@ -11,6 +11,20 @@ A command-line utility that prepares project code context for AI consumption.
 
 ## Installation
 
+### From Binaries
+
+#### Linux/macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fgbm/apc/main/scripts/install.sh | sh
+```
+
+#### Windows
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/fgbm/apc/main/scripts/install.ps1 | iex
+```
+
 ### From Releases
 
 Download the latest binary for your platform from the [Releases page](https://github.com/fgbm/apc/releases).
