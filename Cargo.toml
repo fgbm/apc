@@ -1,0 +1,13 @@
+[package]
+name = "apc"
+version = "0.1.0"
+edition = "2024"
+authors = ["Vladislav Chmelyuk <neimp@yandex.ru>"]
+description = "AI Project Context - Prepares project code context for AI consumption"
+repository = "https://github.com/fgbm/apc"
+license = "MIT"
+readme = "README.md"
+
+[dependencies]
+clap = { version="4.5.32", features = ["derive"] }
+ignore = "0.4.23"
