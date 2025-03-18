@@ -60,7 +60,7 @@ fn should_ignore_path(
     root_path: &Path,
     apcignores: &HashMap<PathBuf, Option<Gitignore>>,
 ) -> bool {
-    // Always ignore .git and .idea directories
+    // Always ignore .git, .idea, and .vscode directories
     if path.components().any(|c| {
         let comp = c.as_os_str();
         comp == ".git" || comp == ".idea" || comp == ".vscode"
@@ -69,8 +69,7 @@ fn should_ignore_path(
     }
 
     // Ignore .gitignore and .apcignore files
-    let file_name = path.file_name().and_then(|n| n.to_str());
-    if let Some(name) = file_name {
+    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
         if name == ".gitignore" || name == ".apcignore" {
             return true;
         }
@@ -191,31 +190,12 @@ fn collect_project_context(
                     .replace('\\', "/");
 
                 if path.is_dir() {
-                    // Create an entry for this directory
-                    dir_children.insert(relative_path.clone(), Vec::new());
-
-                    // Add this directory as a child of the parent directory
-                    if let Some(parent) = Path::new(&relative_path).parent() {
-                        let parent_path = parent.to_string_lossy().replace('\\', "/");
-                        if let Some(children) = dir_children.get_mut(&parent_path) {
-                            children.push(relative_path.clone());
-                        }
-                    }
+                    add_directory(&mut dir_children, &relative_path);
                 } else {
                     if let Ok(Some(file_info)) =
                         collect_file_info(path, root_path, max_file_size, include_binary)
                     {
-                        // Add the file as a child of its parent directory
-                        if let Some(parent) = Path::new(&relative_path).parent() {
-                            let parent_path = parent.to_string_lossy().replace('\\', "/");
-                            if let Some(children) = dir_children.get_mut(&parent_path) {
-                                children.push(relative_path.clone());
-                            }
-                        } else if let Some(children) = dir_children.get_mut("") {
-                            // File in the root directory
-                            children.push(relative_path.clone());
-                        }
-
+                        add_file(&mut dir_children, &relative_path);
                         files.push(file_info);
                     }
                 }
@@ -236,6 +216,34 @@ fn collect_project_context(
         .collect();
 
     Ok(ProjectContext { files, directories })
+}
+
+/// Adds a directory to the directory tree
+fn add_directory(dir_children: &mut HashMap<String, Vec<String>>, relative_path: &str) {
+    dir_children.insert(relative_path.to_string(), Vec::new());
+
+    if let Some(parent) = Path::new(relative_path).parent() {
+        let parent_path = parent.to_string_lossy().replace('\\', "/");
+        if let Some(children) = dir_children.get_mut(&parent_path) {
+            children.push(relative_path.to_string());
+        }
+    }
+}
+
+/// Adds a file to the directory tree
+fn add_file(
+    dir_children: &mut HashMap<String, Vec<String>>,
+    relative_path: &str,
+) {
+    if let Some(parent) = Path::new(relative_path).parent() {
+        let parent_path = parent.to_string_lossy().replace('\\', "/");
+        if let Some(children) = dir_children.get_mut(&parent_path) {
+            children.push(relative_path.to_string());
+        }
+    } else if let Some(children) = dir_children.get_mut("") {
+        // File in the root directory
+        children.push(relative_path.to_string());
+    }
 }
 
 /// Formats directory tree
@@ -338,7 +346,7 @@ fn format_file_contents(context: &ProjectContext) -> String {
     sorted_files.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
 
     for file in &sorted_files {
-        result.push_str(&format!("\n--- {} ---\n\n", file.relative_path));
+        result.push_str(&format!("\n--- {} ---\n", file.relative_path));
         result.push_str(&file.content);
 
         // Only add newline if content doesn't end with one
