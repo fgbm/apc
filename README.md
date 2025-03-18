@@ -16,13 +16,13 @@ A command-line utility that prepares project code context for AI consumption.
 #### Linux/macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fgbm/apc/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/fgbm/apc/refs/heads/master/scripts/install.sh | sh
 ```
 
 #### Windows
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/fgbm/apc/main/scripts/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/fgbm/apc/refs/heads/master/scripts/install.ps1 | iex
 ```
 
 ### From Releases
