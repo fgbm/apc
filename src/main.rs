@@ -1,8 +1,5 @@
 use clap::{Arg, ArgAction, Command};
-use ignore::{
-    gitignore::{Gitignore, GitignoreBuilder},
-    WalkBuilder,
-};
+use ignore::WalkBuilder;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
@@ -40,27 +37,9 @@ fn is_binary(content: &[u8], sample_size: usize) -> bool {
     sample.iter().any(|&byte| byte == 0)
 }
 
-/// Loads ignore rules from .apcignore file
-fn load_apcignore(dir: &Path) -> Result<Option<Gitignore>, Box<dyn Error>> {
-    let apcignore_path = dir.join(".apcignore");
-
-    if apcignore_path.exists() && apcignore_path.is_file() {
-        let mut builder = GitignoreBuilder::new(dir);
-        builder.add(apcignore_path);
-        let gitignore = builder.build()?;
-        Ok(Some(gitignore))
-    } else {
-        Ok(None)
-    }
-}
-
 /// Checks if a path should be ignored based on .apcignore rules
-fn should_ignore_path(
-    path: &Path,
-    root_path: &Path,
-    apcignores: &HashMap<PathBuf, Option<Gitignore>>,
-) -> bool {
-    // Always ignore .git, .idea, and .vscode directories
+fn should_ignore_path(path: &Path) -> bool {
+    // Always ignore .git, .idea, .vscode
     if path.components().any(|c| {
         let comp = c.as_os_str();
         comp == ".git" || comp == ".idea" || comp == ".vscode"
@@ -75,25 +54,8 @@ fn should_ignore_path(
         }
     }
 
-    // Check for ignore rules in the current path and all parent directories
-    let mut current = Some(path.parent().unwrap_or(path));
-    while let Some(dir) = current {
-        if dir == root_path || dir.starts_with(root_path) {
-            if let Some(Some(ignore)) = apcignores.get(dir) {
-                let relative = path.strip_prefix(dir).unwrap_or(path);
-                if ignore.matched(relative, path.is_dir()).is_ignore() {
-                    return true;
-                }
-            }
-            current = dir.parent();
-        } else {
-            break;
-        }
-    }
-
     false
 }
-
 /// Collects file information
 fn collect_file_info(
     path: &Path,
@@ -146,20 +108,15 @@ fn collect_project_context(
 ) -> Result<ProjectContext, Box<dyn Error>> {
     let mut files = Vec::new();
     let mut dir_children: HashMap<String, Vec<String>> = HashMap::new();
-    let mut apcignores: HashMap<PathBuf, Option<Gitignore>> = HashMap::new();
 
     // Add root directory
     dir_children.insert("".to_string(), Vec::new());
 
-    // Load .apcignore from root directory
-    apcignores.insert(root_path.to_path_buf(), load_apcignore(root_path)?);
-
     let mut builder = WalkBuilder::new(root_path);
 
-    // Use .gitignore by default and in all subdirectories
+    // Use .gitignore and .apcignore
     builder.git_ignore(true);
-    builder.git_global(true);
-    builder.git_exclude(true);
+    builder.add_custom_ignore_filename(".apcignore");
     builder.hidden(false);
 
     // Explicitly exclude .git directories
@@ -170,16 +127,8 @@ fn collect_project_context(
             Ok(entry) => {
                 let path = entry.path();
 
-                // Check if the current path is a directory and if so,
-                // load .apcignore from it
-                if path.is_dir() {
-                    if !apcignores.contains_key(path) {
-                        apcignores.insert(path.to_path_buf(), load_apcignore(path)?);
-                    }
-                }
-
-                // Check if this path should be ignored based on .apcignore rules
-                if should_ignore_path(path, root_path, &apcignores) {
+                // Check additional ignore rules
+                if should_ignore_path(path) {
                     continue;
                 }
 
@@ -231,10 +180,7 @@ fn add_directory(dir_children: &mut HashMap<String, Vec<String>>, relative_path:
 }
 
 /// Adds a file to the directory tree
-fn add_file(
-    dir_children: &mut HashMap<String, Vec<String>>,
-    relative_path: &str,
-) {
+fn add_file(dir_children: &mut HashMap<String, Vec<String>>, relative_path: &str) {
     if let Some(parent) = Path::new(relative_path).parent() {
         let parent_path = parent.to_string_lossy().replace('\\', "/");
         if let Some(children) = dir_children.get_mut(&parent_path) {
